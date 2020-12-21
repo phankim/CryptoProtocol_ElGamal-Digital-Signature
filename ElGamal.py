@@ -10,6 +10,7 @@ import sys
 from hashlib import sha256
 from binascii import hexlify, unhexlify
 
+
 def MillerRabin(n):
         if n!=int(n):
             return False
