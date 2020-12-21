@@ -2,20 +2,13 @@
 ##Реализация процедур, составляющих протокол подписи Эль-Гамаля с сокращённой длинной параметров.
 import Crypto.Util.number as num
 from Crypto import Random
-from math import gcd as bltin_gcd
+from Crypto.Util import number
 import random 
 import sympy
 import hashlib
 import sys
 from hashlib import sha256
 from binascii import hexlify, unhexlify
-
-def find_primitive_root(modulo): #find random primitive root modulo p
-    check={n for n in range(1, modulo) if bltin_gcd(n, modulo) }
-    s=[t for t in range(1, modulo) if check == {pow(t, powers, modulo)
-            for powers in range(1,modulo)}]
-    root=random.choice(s)
-    return root    
 
 def MillerRabin(n):
         if n!=int(n):
@@ -62,22 +55,26 @@ def genprimeBits(k):
         if MillerRabin(p):
             break
     return p
+
+
 def main_menu():
     while True:
-        print("\nLab 2:ELGAMAL DIGITAL SIGNATURE (SIMPLE IMPLEMENT)")
+        print("\nLab 2:ELGAMAL DIGITAL SIGNATURE (SIMPLE IMPLEMENTATION)")
         print("1 - Keys generation")
         print("2 - Signing")
         print("3 - Verifying signature")
-        print("4 - Test case invalid signature")
+        print("4 - Exit")
         s = int(input('> Enter your choice: '))
         if (s==1):
             print("\nKEYS GENERATION:")
             l = int(input("Enter length bits of prime p -> "))
+            
             while 1: 
                 q= genprimeBits(l)
                 p=2*q+1 #выбор показатель q, q|p-1
                 if num.isPrime(p):
-                    break
+                    break                         
+            
             while 1:
                 g=num.getRandomRange(3,p)
                 safe=1
@@ -85,13 +82,20 @@ def main_menu():
                     safe==0
                 if safe and pow(g,q,p)==1:
                     safe=0
+                if safe and divmod(p-1,g)[1]==0:
+                    safe=0
+                    # g^(-1) must not divide p-1 because of Khadir's attack 
                 ginv=num.inverse(g,p)
                 if safe and divmod(p-1,ginv)[1]==0:
                     safe=0
                 if safe:
                     break
+            while(num.GCD(g,p-1)!=1):
+                g=num.getRandomRange(3,p)
+
             print("Prime number p ->", p,"\nBinary p ->","(",bin(p),")")
             print("\nGenerator g ->",g)
+            
             x=num.getRandomRange(1,p-1)   
             while (num.GCD(x,p-1)!=1):
                 x=num.getRandomRange(1,p-1) 
@@ -103,41 +107,38 @@ def main_menu():
             print("\nSIGNING:")
             input_message = input("Message: ")
             inputbytes = str.encode(input_message)
-            k=num.getRandomRange(1,p-2)
-            while (num.GCD(k,p-1)!=1):
-                k=num.getRandomRange(1,p-2) #k-random number in range(1,p-2), HOD(k,p-1)=1
+            while 1:
+                k=num.getRandomRange(1,p-2)#k-random number in range(1,p-2), HOD(k,p-1)=1
+                if (num.GCD(k,p-1)==1):
+                    break
             #length of hash=256 bits
             h = hashlib.sha256(input_message.encode('utf-8')).hexdigest()
-            mes = int(h, 16)
-            print("\nHashed message (length bits M < length bits p) -> (",mes.bit_length(),"bits)",mes)
-            
+            mes = int(h,16)
+            print("\nHashed message (length bits M must < length bits p) -> (",mes.bit_length(),"bits)",mes)
             R=pow(g,k,p)
             print("\nParameter signature R (",R.bit_length(),"bits) -> ",R)
-            t=(mes-R*x)%q
-            while t<0:
-                t=t+p1
-            S=(t*num.inverse(k,q))%q
+            t=num.inverse(k,q)
+            S=t*(mes-R*x)%(q)
             print("\nParameter signature S (",S.bit_length(),"bits)-> ",S)
             print("\nSinging signature (R,S).... -> (",R, S,")")
-            print("\nMessage is signed! (M,R,S) -> (",input_message,"(",R,S,")")
-            print("\nSecret parameter k -> ",k)
+            print("\nMessage is signed! [M,R,S] -> [",input_message,"(",R,S,")]")
+            print("\nSecret parameter k ->",k)
         elif (s==3):
             print("\nVERIFYING A SIGNATURE:")
-            if (R>p-1) or (R<0) or (S>(p-1)):
-                print("\nWrong Signature!")
+            if (R>p) or (S>(p-1)) or (num.GCD(g,(p-1))!=1) :
+                print ("\nWrong Signature! Invalid parameters R or S")                
+            D1=pow(g,mes,p)
+            D2=(pow(y,R,p)*pow(R,S,p))%p
+            print ("\nD1=g^m mod p->",D1)
+            print("\nD2=y^R*R^Smod p->",D2)
+            if (D1==D2):
+                print("\nCorrect Signature!")
             else:
-                
-                D1=pow(g,mes,p)
-                D2_1=pow(y,R,p)
-                D2_2=pow(R,S,p)
-                D2=(D2_1*D2_2)%p
-                print ("\nD1=g^m mod p->",D1)
-                print("\nD2=y^R*R^Smod p->",D2)
-                if (D1==D2):
-                    print("\nCorrect Signature!")
-                else:
-                    print("\nWrong signature!")
-        
+                print("\nWrong signature! Invalid parameters R or S")
+            
+        elif (s==4):
+            exit()
+       
            
 main_menu()
 
